@@ -1,3 +1,6 @@
+# This code is based on QuaRot(https://github.com/spcl/QuaRot/tree/main/quarot).
+# Licensed under Apache License 2.0.
+
 import utils.model_utils as model_utils
 import torch
 import typing
@@ -71,13 +74,10 @@ def fuse_layer_norms(model):
             fuse_ln_linear(layer.ffn_norm, [layer.feed_forward.w1, layer.feed_forward.w3])
         else:
             raise ValueError(f'Unknown model type {model_type}')
-            
-            
     
         if model_type == model_utils.OPT_MODEL:
             bake_mean_into_linear(layer.self_attn.out_proj)
-            bake_mean_into_linear(layer.fc2)
-                    
+            bake_mean_into_linear(layer.fc2)       
     
     fuse_ln_linear(model_utils.get_pre_head_layernorm(**kwargs), [model_utils.get_lm_head(**kwargs)])
     norm_type = model_utils.get_norm_type(model)

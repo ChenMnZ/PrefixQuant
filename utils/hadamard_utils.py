@@ -1,5 +1,9 @@
 import torch, math
 import fast_hadamard_transform
+
+
+# This code is based on QuaRot(https://github.com/spcl/QuaRot/tree/main/quarot).
+# Licensed under Apache License 2.0.
 # Adapted from https://github.com/Cornell-RelaxML/quip-sharp/blob/main/lib/utils/matmul_had.py
 
 def get_hadK(n, transpose=False):

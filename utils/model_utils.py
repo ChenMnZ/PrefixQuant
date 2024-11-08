@@ -1,3 +1,6 @@
+# This code is based on QuaRot(https://github.com/spcl/QuaRot/tree/main/quarot).
+# Licensed under Apache License 2.0.
+
 import torch
 import typing
 import transformers
