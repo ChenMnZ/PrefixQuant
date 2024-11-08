@@ -51,13 +51,18 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
         )
         logger.info(make_table(results))
         total_acc = 0
+        total_acc_with_norm = 0
         for task in ['winogrande','hellaswag','arc_challenge','arc_easy','piqa']:
             if task in task_list:
                 total_acc += results['results'][task]['acc,none']
                 results_str += f"{results['results'][task]['acc,none']*100:.2f} "
                 if 'acc_norm,none' in results['results'][task]:
                     results_str += f"{results['results'][task]['acc_norm,none']*100:.2f} "
+                    total_acc_with_norm += results['results'][task]['acc_norm,none']
+                else:
+                    total_acc_with_norm += results['results'][task]['acc,none']
         logger.info(f'Average Acc: {total_acc/len(task_list)*100:.2f}%')
+        logger.info(f'Average Acc (with norm): {total_acc_with_norm/len(task_list)*100:.2f}%')
         logger.info(f'Results string: {results_str.strip()}')
         # remove wrapper
         if prefixed_key_values is not None:
@@ -184,6 +189,11 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
         model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True)
+        # for index in range(len(model.model.layers)):
+        #     print(model.model.layers[index].input_layernorm.weight.abs().max())
+        # for index in range(len(model.model.layers)):
+        #     print(model.model.layers[index].input_layernorm.weight.abs().min())
+        # import pdb;pdb.set_trace()
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
