@@ -6,6 +6,7 @@ Official PyTorch implement for [PrefixQuant:Static Quantization Beats Dynamic th
 ## News
 
 [2025/1] Support the learnable activation cliping for dynamic quantization.
+
 [2024/10] We release PrefixQuant, the first work to let static activation quantization outperforms dynamic ones in LLM. We only open the fake quantization code now, and the inference kernels will be released later.
 
 ## Contents
