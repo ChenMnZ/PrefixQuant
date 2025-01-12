@@ -112,6 +112,12 @@ def stat_layer_wise_outlier_token_number(dataloader, output_activation, model, o
         stats.append(seq_np)
     return stats
 
+def stat_outlier_token_number(dataloader, output_activation, model, outlier_threshold=50, outlier_object='hidden_state'):
+    stats = stat_layer_wise_outlier_token_number(dataloader, output_activation, model, outlier_threshold, outlier_object)
+    stats = np.vstack(stats)
+    stats = np.max(stats, axis=1) # sequence-wise outlier-token number
+    return stats.astype(int)
+
         
 def stat_outlier_token_position(dataloader, output_activation, model, prefixed_tokens=None, outlier_threshold=20, outlier_object='hidden_state'):
     stats = []

@@ -25,8 +25,8 @@ def evaluate(model, tokenizer,prefixed_key_values, args, logger):
     prefixed_key_values = model_utils.mv_kv_cache(prefixed_key_values, model)
     results_str=""
     if args.eval_ppl:
-        # datasets = ["wikitext2", "c4"]
-        datasets = ["wikitext2"]
+        datasets = ["wikitext2", "c4"]
+        # datasets = ["wikitext2"]
         ppl_results = test_ppl(args, model, tokenizer, prefixed_key_values, datasets)
         for dataset in ppl_results:
             logger.info(f'{dataset} perplexity: {ppl_results[dataset]:.2f}')
@@ -116,7 +116,7 @@ def main():
     parser.add_argument("--qk_online_had", action="store_true")
     parser.add_argument("--set_prefixed_tokens", action="store_true")
     parser.add_argument("--outlier_threshold", type=int, default=64, help="\eta in Eq.(3), indicating the oitlier threshold ratio detect outlier tokens, ")
-    parser.add_argument("--lac", action="store_true",help="learnable activation clipping for dynamic quantization, we donot use this in our paper.")
+    parser.add_argument("--activation_clipping", action="store_true",help="layer-wise activation clipping for dynamic quantization")
     # -----------------training setting------------------------------------
     parser.add_argument("--quant_lr", type=float, default=5e-5, help="lr of quantization parameters (s and z)")
     parser.add_argument("--weight_lr", type=float, default=5e-6, help="lr of fp weights")
@@ -189,11 +189,6 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_fast=False,legacy=False,trust_remote_code=True)
         dtype = torch.float16 if not args.use_fp32 else torch.float32
         model = AutoModelForCausalLM.from_pretrained(args.model_path, config=config, device_map='cpu',torch_dtype=dtype,trust_remote_code=True)
-        # for index in range(len(model.model.layers)):
-        #     print(model.model.layers[index].input_layernorm.weight.abs().max())
-        # for index in range(len(model.model.layers)):
-        #     print(model.model.layers[index].input_layernorm.weight.abs().min())
-        # import pdb;pdb.set_trace()
         if args.pre_rotate:
             rotation_utils.fuse_layer_norms(model)
             rotation_utils.rotate_model(model, rotate_mode=args.rotate_mode, online=args.down_online_had)
@@ -256,7 +251,7 @@ def main():
                 
             # get activation statistic for activation quantization
             if include_static:
-                assert args.input_mode == "static" or args.kv_mode == "static","mse_init require static quantization"
+                # assert args.input_mode == "static" or args.kv_mode == "static","mse_init require static quantization"
                 activation_stat = get_act_stat(model, cal_dataloader, 'max', prefixed_tokens, args.down_online_had)
             if original_device == 'cpu':
                 remove_hook_from_module(model, recurse=True)

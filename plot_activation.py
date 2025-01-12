@@ -12,9 +12,9 @@ import utils.model_utils as model_utils
 import utils.rotation_utils as rotation_utils
 from utils.plot_utils import (plot_3D_tensor, plot_layer_ax_input,plot_layer_ax_output, plot_layer_outlier_token_num,
                             plot_outlier_token_position,plot_outlier_token,
-                            plot_combined_layer_ax_input,plot_combined_layer_ax_output)
+                            plot_combined_layer_ax_input,plot_combined_layer_ax_output,plot_outlier_token_number)
 from utils.stat_utils import (stat_layer_wise_magnitude_input, stat_layer_wise_magnitude_output,stat_layer_wise_outlier_token_number,
-                        stat_outlier_token_position,stat_outlier_token,get_nrom_and_decoder_class)
+                        stat_outlier_token_position,stat_outlier_token,get_nrom_and_decoder_class,stat_outlier_token_number)
 from utils.quant_utils import wrap_to_quant_model, register_online_had
 
 
@@ -35,7 +35,7 @@ def parse_args():
         help="Where to extract calibration data from.",)
     parser.add_argument('--num_samples', type=int, default=64)
     parser.add_argument('--seq_len', type=int, default=1024)
-    parser.add_argument("--seed", type=int, default=2, help="Seed for sampling the calibration data.")
+    parser.add_argument("--seed", type=int, default=0, help="Seed for sampling the calibration data.")
     parser.add_argument("--max_memory", type=str, default="55GiB",help="The maximum memory of each GPU")
     # ----------------- rotation and prefix setting ------------------------------------
     parser.add_argument("--pre_rotate", action="store_true")
@@ -50,6 +50,7 @@ def parse_args():
     parser.add_argument("--plot_layer_wise_outlier_token_number", action="store_true", help="plot layer-wise outlier token number")
     parser.add_argument("--plot_outlier_token_position", action="store_true", help="count the token index of outlier tokens")
     parser.add_argument("--plot_outlier_token", action="store_true", help="count the token content of outlier tokens")
+    parser.add_argument("--plot_outlier_token_number", action="store_true", help="count the outlier tokens number of a model")
     parser.add_argument("--plot_layer_input_3d", action="store_true", help="plot the 3D image of layer inputs")
     parser.add_argument("--plot_block_output_3d", action="store_true", help="plot the 3D image of block outputs")
     parser.add_argument("--disable_legend", action="store_true",help="Weather to disable the legend")
@@ -156,7 +157,7 @@ input_activation = {}
 output_activation = {}
 model_family = args.model_name.split('-')[0]
 norm_class, decoder_class = get_nrom_and_decoder_class(model_family, model)
-if args.plot_linear_input or args.plot_layer_input_3d or args.plot_layer_wise_outlier_token_number or args.plot_outlier_token_position or args.plot_outlier_token:
+if args.plot_linear_input or args.plot_layer_input_3d or args.plot_layer_wise_outlier_token_number or args.plot_outlier_token_position or args.plot_outlier_token or args.plot_outlier_token_number:
     class_tuple = (nn.Linear, QuantLinear)
 elif args.plot_linear_output:
     class_tuple = (nn.Linear, QuantLinear,rotation_utils.QKRotationWrapper)
@@ -202,16 +203,21 @@ if args.plot_outlier_token_position:
     plot_outlier_token_position(stats, args.model_name, args.save_dir)
 
 
-# step 4.5 plot contents of outlier tokens
+# step 4.6 plot contents of outlier tokens
 if args.plot_outlier_token:
     stats = stat_outlier_token(dataloader, output_activation, model, tokenizer, decode=True, outlier_threshold=args.outlier_threshold, outlier_object=args.outlier_object)
     if len(stats) == 0:
         stats.append('all in staring token')
     plot_outlier_token(stats, args.model_name, args.save_dir)
+    
+# step 4.7 plot outlier token number
+if args.plot_outlier_token_number:
+    stats = stat_outlier_token_number(dataloader, output_activation, model, outlier_threshold=args.outlier_threshold, outlier_object=args.outlier_object)
+    plot_outlier_token_number(stats, args.model_name, args.save_dir)
 
  
    
-# step4.6 plot the 3D images of linear input
+# step4.7 plot the 3D images of linear input
 if args.plot_layer_input_3d:
     data = dataloader[0][0]
     if prefixed_tokens is not None:
@@ -234,7 +240,7 @@ if args.plot_layer_input_3d:
         activation = activation[:512]
         plot_3D_tensor(layer_name,activation.abs(), file_name) 
 
-# step4.6 plot the 3D images of block output
+# step4.8 plot the 3D images of block output
 if args.plot_block_output_3d:
     data = dataloader[0][0]
     with torch.no_grad():

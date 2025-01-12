@@ -51,7 +51,7 @@ class UniformAffineQuantizer(nn.Module):
         mode='static',
         minmax_init=True,
         disable_zero_point_in_sym=True,
-        learnable_clipping=False,
+        activation_clipping=False,
     ):
         '''
         quantized_item_stat: 
@@ -69,7 +69,7 @@ class UniformAffineQuantizer(nn.Module):
         self.mode = mode
         self.asym = asym
         self.disable_zero_point_in_sym = disable_zero_point_in_sym
-        self.learnable_clipping = learnable_clipping
+        self.activation_clipping = activation_clipping
         self.enable = True
         if self.asym or not self.disable_zero_point_in_sym:
             self.qmin = 0
@@ -151,12 +151,12 @@ class UniformAffineQuantizer(nn.Module):
                     
                 
         elif self.mode == 'dynamic':
-            if self.learnable_clipping:
+            if self.activation_clipping:
                 if self.asym:
-                    self.upbound_factor = nn.Parameter(torch.ones(1)*0.9)
-                    self.lowbound_factor = nn.Parameter(torch.ones(1)*0.9)
+                    self.upbound_factor = nn.Parameter(torch.tensor([0.95]))
+                    self.lowbound_factor = nn.Parameter(torch.tensor([0.95]))
                 else:
-                    self.bound_factor = nn.Parameter(torch.ones(1)*0.9)
+                    self.bound_factor = nn.Parameter(torch.tensor([0.95]))
             if not self.asym:
                 self.zero_point = None
                 self.qmin = -(2 ** (self.n_bits - 1))
@@ -232,13 +232,13 @@ class UniformAffineQuantizer(nn.Module):
         if self.asym:
             xmin = x.amin([-1], keepdim=True)
             xmax =  x.amax([-1], keepdim=True)   
-            if self.learnable_clipping:
+            if self.activation_clipping:
                 xmin = xmin * self.lowbound_factor
                 xmax = xmax * self.upbound_factor
             quant_range = xmax - xmin
         else:
             xmax =  x.abs().amax([-1], keepdim=True)  
-            if self.learnable_clipping:
+            if self.activation_clipping:
                 xmax = xmax * self.bound_factor 
             quant_range = 2 * xmax
         scale = (quant_range / (2**self.n_bits-1)).clamp(min=1e-4, max=1e4)

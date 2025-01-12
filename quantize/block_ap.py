@@ -54,6 +54,7 @@ def train_one_epoch(qlayer, prefixed_key_values, attention_mask, position_ids,
                 loss = 1/2 * (loss_1 + loss_2)
         if not math.isfinite(loss.item()):
             print("Loss is NAN, stopping training")
+            import pdb;pdb.set_trace()
         loss_list.append(loss.detach().cpu())
         optimizer.zero_grad()
         norm = loss_scaler(loss, optimizer,parameters=trainable_parameters(qlayer)).cpu()
@@ -250,7 +251,7 @@ def block_ap(
                 update_dataset(qlayer,quant_train_inps, fp_train_inps_with_quant,dev,attention_mask,position_ids,prefixed_key_values)
                 update_dataset(qlayer,quant_val_inps, fp_val_inps_with_quant,dev,attention_mask,position_ids,prefixed_key_values)
 
-        # serarch for the optimal initialization for per-tensor static activation quantization
+        # serarch for the optimal initialization for quantiztaion parameters
         if args.mse_init:
             logger.info("MSE init start")
             sub_train_input = quant_train_inps.get_subset(args.mse_init_size).to(dev,torch.float16) 

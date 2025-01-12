@@ -268,6 +268,25 @@ def plot_outlier_token_position_sub(ax, labels, values, model_name):
     plt.xticks(fontsize=20, fontweight="bold")
     plt.yticks(fontsize=20)
     ax.set_ylim(0, max(values) * 1.13)
+
+def plot_outlier_token_number_sub(ax, labels, values, model_name):
+    colors = ["cornflowerblue", "mediumseagreen", "C4", "teal",  "dimgrey", "gold"]
+
+    bars = ax.bar(labels, values, color=colors[0])
+    ax.set_title(MODEL_TITLE_DICT[model_name], fontsize=20, fontweight="bold")
+    for bar in bars:
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2.0, height, f'{height:.2f}%', ha='center', va='bottom',fontsize=20, fontweight="bold")
+
+
+    ax.set_xlabel('Number in sequence ', fontsize=20, labelpad=0.8, fontweight="bold")
+    ax.set_ylabel("Percentage (%)", fontsize=20)
+    plt.subplots_adjust(top=0.85)
+    ax.tick_params(axis='x', which='major', pad=1.0)
+    ax.tick_params(axis='y', which='major', pad=0.4)
+    plt.xticks(fontsize=20, fontweight="bold")
+    plt.yticks(fontsize=20)
+    ax.set_ylim(0, max(values) * 1.13)
     
 def plot_outlier_token_position(obj, model_name, savedir):
     fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(7.5, 4.5))
@@ -277,13 +296,31 @@ def plot_outlier_token_position(obj, model_name, savedir):
     data = Counter(obj)
     total = sum(data.values())
     percentages = {k: (v / total) * 100 for k, v in data.items()}
-    sorted_percentages = dict(sorted(percentages.items(), key=lambda item: item[1], reverse=True)[:5])
+    sorted_percentages = dict(sorted(percentages.items(), key=lambda item: item[1], reverse=True)[:2])
     sorted_percentages['Others'] = sum(v for k, v in percentages.items() if k not in sorted_percentages)
     labels = list(sorted_percentages.keys())
     labels = [str(k) for k in sorted_percentages.keys()]
     values = list(sorted_percentages.values())
     
     plot_outlier_token_position_sub(axs, labels, values, model_name)
+    plt.savefig(os.path.join(savedir,f"{model_name}.png"), bbox_inches="tight", dpi=200)
+    plt.savefig(os.path.join(savedir,f"{model_name}.pdf"), bbox_inches="tight", dpi=200)
+
+def plot_outlier_token_number(obj, model_name, savedir):
+    fig, axs = plt.subplots(nrows=1, ncols=1, figsize=(7.5, 4.5))
+    fig.tight_layout() # Or equivalently,  "plt.tight_layout()"
+    plt.subplots_adjust(wspace=0.13)
+
+    data = Counter(obj)
+    total = sum(data.values())
+    percentages = {k: (v / total) * 100 for k, v in data.items()}
+    sorted_percentages = dict(sorted(percentages.items(), key=lambda item: item[1], reverse=True)[:3])
+    sorted_percentages['Others'] = sum(v for k, v in percentages.items() if k not in sorted_percentages)
+    labels = list(sorted_percentages.keys())
+    labels = [str(k) for k in sorted_percentages.keys()]
+    values = list(sorted_percentages.values())
+    
+    plot_outlier_token_number_sub(axs, labels, values, model_name)
     plt.savefig(os.path.join(savedir,f"{model_name}.png"), bbox_inches="tight", dpi=200)
     plt.savefig(os.path.join(savedir,f"{model_name}.pdf"), bbox_inches="tight", dpi=200)
 

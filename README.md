@@ -5,6 +5,7 @@ Official PyTorch implement for [PrefixQuant:Static Quantization Beats Dynamic th
 
 ## News
 
+[2025/1] Support the learnable activation cliping for dynamic quantization.
 [2024/10] We release PrefixQuant, the first work to let static activation quantization outperforms dynamic ones in LLM. We only open the fake quantization code now, and the inference kernels will be released later.
 
 ## Contents
@@ -47,6 +48,7 @@ CUDA_VISIBLE_DEVICES=0 python main.py \
 --save_quant_dir ./pre_quantized_models/llama-3-8b-w4a4kv4
 ```
 You can find the detailed fine-tuning setting in the paper. There are some useful information as follows:
+- For dynamic quantization, you should add `--activation_clipping` to enhance the perfomance.
 - You can add `--epochs 20` to introduce fine-tuning for W4A4KV4 quantization, and `--epochs 10` for W4A8KV4 quantization. 
 - For Llama-3-70B(-Instruct) models, you should change the default learning rate to `--quant_lr 2e-5 --weight_lr 2e-6`. 
 - For Llama-2-70B, you should set `--loss_type skip_mse` for the training stability.
@@ -63,7 +65,7 @@ CUDA_VISIBLE_DEVICES=0 python eval.py \
 ## Plot Activation Distribution
 We provide an example command to visualize token-wsie maximum values for linear inputs:
 ```
-CUDA_VISIBLE_DEVICES=0 python draw_activation.py \
+CUDA_VISIBLE_DEVICES=0 python plot_activation.py \
 --model_path path/to/llama-2-7b \
 --model_name llama-2-7b \
 --plot_linear_input

@@ -159,14 +159,14 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
             input_asym = args.input_asym
             input_mode = args.input_mode
             input_stat = activation_stat[f'{name}.input'] if activation_stat is not None else None
-            lac=args.lac
+            activation_clipping=args.activation_clipping
             module.use_act_quant = True
             quantized_shape = (1,module.in_features)
             module.input_quantizer = UniformAffineQuantizer(input_bits, quantized_shape, input_asym, input_group_size,
                                                             quantized_item_stat=input_stat,
                                                             quant_type='activation',
                                                             mode=input_mode, 
-                                                            learnable_clipping=lac,
+                                                            activation_clipping=activation_clipping,
                                                             minmax_init=minmax_init)
             sym_stat = "asymmetric" if input_asym else 'symmetric'
             print(f'input activation quantization: set {name} as {input_bits}-bit {input_group_size} groupsize {input_mode} {sym_stat} quantization')
@@ -181,12 +181,13 @@ def init_input_quantizer(args, model, activation_stat=None, minmax_init=True):
             output_mode = args.input_mode
             output_stat = activation_stat[f'{name}.output'] if activation_stat is not None else None
             module.use_act_quant = True
+            activation_clipping=args.activation_clipping
             quantized_shape = (1,module.out_features)
             module.output_quantizer =  UniformAffineQuantizer(output_bits, quantized_shape, output_asym, output_group_size,
                                                             quantized_item_stat=output_stat,
                                                             quant_type='activation',
                                                             mode=output_mode, 
-                                                            learnable_clipping=lac,
+                                                            activation_clipping=activation_clipping,
                                                             minmax_init=minmax_init)
             sym_stat = "asymmetric" if output_asym else 'symmetric'
             print(f'output activation quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
@@ -206,12 +207,14 @@ def init_v_quantizer(args, model, activation_stat=None, minmax_init=True):
             output_mode = args.kv_mode
             output_stat = activation_stat[f'{name}.output'] if activation_stat is not None else None
             module.use_act_quant = True
+            activation_clipping=args.activation_clipping
             quantized_shape = (1,module.out_features)
             module.output_quantizer = UniformAffineQuantizer(output_bits, quantized_shape, output_asym, output_group_size, 
                                                             quantized_item_stat=output_stat,
                                                             quant_type='activation',
                                                             mode=output_mode,
-                                                            minmax_init=minmax_init)
+                                                            minmax_init=minmax_init,
+                                                            activation_clipping=activation_clipping)
             sym_stat = "asymmetric" if output_asym else 'symmetric'
             print(f'v-cache quantization: set {name} as {output_bits}-bit {output_group_size} groupsize {output_mode} {sym_stat} quantization')
 
@@ -392,7 +395,7 @@ def k_cache_mse_init(module, kv_cache, softmax=False, n_grid=20, max_shrink=0.5)
     return min_errs.mean()
 
 @torch.no_grad()
-def tensor_mse_init(quantizer, data, n_grid=20, max_shrink=0.5):
+def tensor_mse_init_static(quantizer, data, n_grid=20, max_shrink=0.5):
     dev = quantizer.scale.device
     group_size = quantizer.group_size
     original_scale = quantizer.scale.clone().to(dev)       # init with MAX-MIN
@@ -415,8 +418,36 @@ def tensor_mse_init(quantizer, data, n_grid=20, max_shrink=0.5):
     quantizer.scale.data = best_scale
     return min_errs.mean()
 
+# @torch.no_grad()
+# def tensor_mse_init_dynamic(quantizer, data):
+#     dev = quantizer.scale.device
+#     group_size = quantizer.group_size
+#     min_errs = torch.inf
+#     if isinstance(data,list):
+#         data = torch.cat(data, dim=0)
+#     bs, seq_len, dims = data.shape
+#     if quantizer.asym:
+#         searched_upbound_factors = torch.linspace(0.6, 1, 9).to(dev)
+#         searched_lowbound_factors = torch.linspace(0.6, 1, 9).to(dev)
+#         for upbound_fator in searched_upbound_factors:
+#             for lowbound_factor in searched_lowbound_factors:
+#                 quantizer.upbound_factor.data = upbound_fator
+#                 quantizer.lowbound_factor.data = lowbound_factor        
+#         q_data = quantizer(data)
+#         err = (data - q_data).pow(2).reshape((bs, seq_len, -1, group_size)).mean(dim=(0,1,3)).view(min_errs.shape)
+#         del q_data
+#         cur_best_idx = err < min_errs
+#         min_errs[cur_best_idx] = err[cur_best_idx].to(min_errs)
+#         best_scale[cur_best_idx] = cur_scale[cur_best_idx]
+
+#     quantizer.scale.data = best_scale
+#     return min_errs.mean()
+
+
+
+
 @torch.no_grad()
-def block_mse_init(quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, attention_mask, position_ids):
+def block_mse_init_static(quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, attention_mask, position_ids):
     '''
     share a clipping scale accross a layer
     '''
@@ -456,7 +487,50 @@ def block_mse_init(quantizer, qblock, prefixed_key_values, dev, data_inputs, dat
 
     quantizer.scale.data = best_scale
     return best_clip_factor, best_loss
-    # logger.info(f"[{name}] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")      
+
+@torch.no_grad()
+def block_mse_init_dynamic(quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, attention_mask, position_ids):
+    '''
+    search for the clipping value of dynamic quantizer
+    '''
+    loss_func = torch.nn.MSELoss()
+    best_loss = torch.inf
+    bs = data_inputs.shape[0]
+    
+    if quantizer.asym:
+        searched_upbound_factors = torch.linspace(0.6, 1, 9).to(dev)
+        searched_lowbound_factors = torch.linspace(0.6, 1, 9).to(dev)
+        for upbound_fator in searched_upbound_factors:
+            for lowbound_factor in searched_lowbound_factors:
+                quantizer.upbound_factor.data = upbound_fator
+                quantizer.lowbound_factor.data = lowbound_factor
+                past_key_value = get_kv_cache(prefixed_key_values,bs)
+                with torch.cuda.amp.autocast():
+                    quant_out = qblock(data_inputs,attention_mask=attention_mask, position_ids=position_ids,past_key_value=past_key_value)[0]
+                cur_loss = loss_func(quant_out,data_gts)
+                if cur_loss <= best_loss:
+                    best_loss = cur_loss
+                    best_upbound_factor = upbound_fator
+                    best_lowbound_factor = lowbound_factor
+        quantizer.upbound_factor.data = best_upbound_factor
+        quantizer.lowbound_factor.data = best_lowbound_factor
+        best_clip_factor = (best_lowbound_factor.item(),best_upbound_factor.item())
+    else:
+        searched_bound_factors = torch.linspace(0.6, 1, 9).to(dev)
+        for bound_factor in searched_bound_factors:
+            quantizer.bound_factor.data = bound_factor
+            past_key_value = get_kv_cache(prefixed_key_values,bs)
+            with torch.cuda.amp.autocast():
+                quant_out = qblock(data_inputs,attention_mask=attention_mask, position_ids=position_ids,past_key_value=past_key_value)[0]
+            cur_loss = loss_func(quant_out,data_gts)
+            # print(cur_loss)
+            # import pdb;pdb.set_trace()
+            if cur_loss <= best_loss:
+                best_loss = cur_loss
+                best_bound_factor = bound_factor
+        quantizer.bound_factor.data = best_bound_factor
+        best_clip_factor = best_bound_factor.item()
+    return best_clip_factor, best_loss
 
 @torch.no_grad()
 def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, position_ids, logger, args, data_gt_asym=None):
@@ -498,36 +572,55 @@ def mse_init(qblock, prefixed_key_values, dev, data_inputs, attention_mask, posi
     for name, module in qblock.named_modules():
         if isinstance(module, (int_linear_fake.QuantLinear,QuantRMSNorm,QKRotationWrapper)):
             module.set_quant_state(weight_quant=False,act_quant=True)
-            # deactivate_quantizer(module) # for one-by-ony initialization
-            if hasattr(module,'input_quantizer') and module.input_quantizer.mode=='static' and module.input_quantizer.n_bits<16:
+            # init input quantizer
+            if hasattr(module,'input_quantizer')  and module.input_quantizer.n_bits<16:
                 module.input_quantizer.activate()
-                best_clip_factor, best_loss = block_mse_init(module.input_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
-                logger.info(f"[{name}_input_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
-            if hasattr(module, 'output_quantizer') and module.output_quantizer.mode=='static' and module.output_quantizer.n_bits<16:
-                # V cache quantization
+                if module.input_quantizer.mode=='static':
+                    best_clip_factor, best_loss = block_mse_init_static(module.input_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_input_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                elif module.input_quantizer.mode=='dynamic' and module.input_quantizer.activation_clipping:
+                    best_clip_factor, best_loss = block_mse_init_dynamic(module.input_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_input_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+            
+            # init output quantizer        
+            if hasattr(module, 'output_quantizer') and module.output_quantizer.n_bits<16:
                 module.output_quantizer.activate()
-                if 'v_proj' in name and module.output_quantizer.inc_groups > 1:
-                    best_loss = tensor_mse_init(module.output_quantizer,output_activation_dict[name])
-                    logger.info(f"[{name}_output_quantizer] best_loss:{best_loss} ")
-                else:
-                    best_clip_factor, best_loss = block_mse_init(module.output_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
-                    logger.info(f"[{name}_output_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
+                # V cache quantization
+                if module.output_quantizer.mode=='static':
+                    if 'v_proj' in name and module.output_quantizer.inc_groups > 1:
+                        best_loss = tensor_mse_init_static(module.output_quantizer,output_activation_dict[name])
+                        logger.info(f"[{name}_output_quantizer] best_loss:{best_loss} ")
+                    else:
+                        best_clip_factor, best_loss = block_mse_init_static(module.output_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                        logger.info(f"[{name}_output_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                elif module.output_quantizer.mode=='dynamic' and module.output_quantizer.activation_clipping:
+                    # if 'v_proj' in name and module.output_quantizer.inc_groups > 1:
+                    #     pass
+                    # else:
+                    #     best_clip_factor, best_loss = block_mse_init_dynamic(module.output_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    #     logger.info(f"[{name}_output_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+                    best_clip_factor, best_loss = block_mse_init_dynamic(module.output_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    logger.info(f"[{name}_output_quantizer] clipping factor: ({best_clip_factor}); best_loss:{best_loss} ")
+            
+            # init k quantizer
             if hasattr(module,'k_quantizer') and module.k_quantizer.mode=='static' and module.k_quantizer.n_bits<16:
                 module.k_quantizer.activate()
                 if module.k_quantizer.inc_groups > 1:
                     best_loss = k_cache_mse_init(module,output_activation_dict[name], softmax=True)
                     logger.info(f"[{name}_k_quantizer] best_loss:{best_loss} ")
                 else:
-                    best_clip_factor, best_loss = block_mse_init(module.k_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                    best_clip_factor, best_loss = block_mse_init_static(module.k_quantizer, qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                     logger.info(f"[{name}_k_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
             module.set_quant_state(weight_quant=True,act_quant=False)
+
+            # init weight quantizer
             if hasattr(module,'weight_quantizer') and module.weight_quantizer.n_bits<16:
                 module.weight_quantizer.activate()
                 if 'q_proj' in name or 'k_proj' in name:
                     if args.skip_qk_weight_init:
                         continue
                     elif args.block_qk_weight_init:
-                        best_clip_factor, best_loss = block_mse_init(module.weight_quantizer,qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
+                        best_clip_factor, best_loss = block_mse_init_static(module.weight_quantizer,qblock, prefixed_key_values, dev, data_inputs, data_gts, batch_attention_mask, position_ids)
                         logger.info(f"[{name}_weight_quantizer] clipping factor: ({best_clip_factor:.2f}); best_loss:{best_loss} ")
                     else:
                         best_loss = weight_layer_mse_init(module, input_activation_dict[name])
@@ -734,7 +827,7 @@ def get_quant_config(args):
     quantization_config["qk_online_had"] = args.qk_online_had and args.pre_rotate
     quantization_config["real_quant"] = args.real_quant    
     quantization_config["set_prefixed_tokens"] = args.set_prefixed_tokens    
-    quantization_config["lac"] = args.lac    
+    quantization_config["activation_clipping"] = args.activation_clipping    
     return quantization_config
 
 
