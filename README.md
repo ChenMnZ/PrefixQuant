@@ -1,5 +1,5 @@
 # PrefixQuant
-Official PyTorch implement for [PrefixQuant:Static Quantization Beats Dynamic through Prefixed Outliers in LLMs](https://arxiv.org/abs/2410.05265). 
+Official PyTorch implement for [PrefixQuant: Eliminating Outliers by Prefixed Tokens for Large Language Models Quantization](https://arxiv.org/abs/2410.05265). 
 
 
 
@@ -87,7 +87,7 @@ More examples can be found in `./examples/plot.sh`.
 If you use our PrefixQuant approach in your research, please cite our paper:
 ```
 @article{prefixquant,
-  title={PrefixQuant: Static Quantization Beats Dynamic through Prefixed Outliers in LLMs},
+  title={PrefixQuant: Eliminating Outliers by Prefixed Tokens for Large Language Models Quantization},
   author={Chen, Mengzhao and  Liu, Yi and Wang, Jiahao and Bin, Yi and Shao, Wenqi and Luo, Ping},
   journal={arXiv preprint arXiv:2410.05265},
   year={2024}
