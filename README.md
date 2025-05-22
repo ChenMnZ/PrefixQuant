@@ -4,6 +4,7 @@ Official PyTorch implement for [PrefixQuant: Eliminating Outliers by Prefixed To
 
 
 ## News
+[2025/05] 🔥 **We explore the [Scaling Law for Quantization-Aware Training](https://export.arxiv.org/abs/2505.14302), which offers insights and instruction for LLMs QAT.**
 
 [2025/1] Support the learnable activation cliping for dynamic quantization.
 
