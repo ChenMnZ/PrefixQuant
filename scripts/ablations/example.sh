@@ -1,0 +1,19 @@
+CUDA_VISIBLE_DEVICES=0 python main.py \
+--model_path /opt/tiger/PrefixQuant/hf_models/Meta-Llama-3-8B  \
+--model_name Llama-3-8b \
+--output_dir ./log/llama-3-8b-w4a4kv4 \
+--wbits 4 \
+--input_bits 4 \
+--input_mode static \
+--v_bits 4 \
+--k_bits 4 \
+--kv_group_size 128 \
+--kv_mode static \
+--mse_init \
+--pre_rotate \
+--down_online_had \
+--qk_online_had \
+--set_prefixed_tokens \
+--eval_ppl \
+--eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande \
+--save_quant_dir ./pre_quantized_models/llama-3-8b-w4a4kv4

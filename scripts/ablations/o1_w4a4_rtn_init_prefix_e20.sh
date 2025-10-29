@@ -1,0 +1,16 @@
+CUDA_VISIBLE_DEVICES=0 python3 main.py \
+--model_path /opt/tiger/PrefixQuant/hf_models/Meta-Llama-3-8B  \
+--model_name Llama-3-8b \
+--output_dir ./log/llama-3-8b-w4a4kv4 \
+--wbits 4 \
+--input_bits 4 \
+--input_mode dynamic \
+--v_bits 4 \
+--k_bits 4 \
+--kv_group_size 128 \
+--kv_mode dynamic \
+--mse_init \
+--set_prefixed_tokens \
+--activation_clipping \
+--eval_ppl \
+--epochs 20

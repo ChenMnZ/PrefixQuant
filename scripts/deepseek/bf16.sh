@@ -1,0 +1,13 @@
+CUDA_VISIBLE_DEVICES=0 python3 main.py \
+--model_path /opt/tiger/PrefixQuant/hf_models/deepseek-llm-7b-base  \
+--model_name deepseek-llm-7b \
+--output_dir ./log/llama-3-8b-w4a4kv4 \
+--wbits 16 \
+--input_bits 16 \
+--input_mode static \
+--v_bits 16 \
+--k_bits 16 \
+--kv_group_size 128 \
+--kv_mode static \
+--eval_ppl \
+--eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande
