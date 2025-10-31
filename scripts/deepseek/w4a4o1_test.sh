@@ -1,0 +1,19 @@
+CUDA_VISIBLE_DEVICES=4 python3 main.py \
+--model_path /opt/tiger/PrefixQuant/hf_models/deepseek-llm-7b-base  \
+--model_name Llama-7b \
+--output_dir ./log/llama-3-8b-w4a4kv4 \
+--wbits 4 \
+--input_bits 4 \
+--input_mode dynamic \
+--v_bits 4 \
+--k_bits 4 \
+--kv_group_size 128 \
+--kv_mode dynamic \
+--eval_ppl \
+--pre_rotate \
+--down_online_had \
+--qk_online_had \
+--activation_clipping \
+--mse_init \
+--epochs 20 \
+--eval_tasks  piqa,arc_easy,arc_challenge,hellaswag,winogrande

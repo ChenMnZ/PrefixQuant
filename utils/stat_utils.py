@@ -207,6 +207,10 @@ def get_nrom_and_decoder_class(model_family, model):
         from transformers.models.gemma2.modeling_gemma2 import Gemma2RMSNorm,Gemma2DecoderLayer
         norm_class = Gemma2RMSNorm
         decoder_class = Gemma2DecoderLayer
+    elif model_family == 'deepseek':
+        from transformers.models.llama.modeling_llama import LlamaRMSNorm,LlamaDecoderLayer
+        norm_class = LlamaRMSNorm
+        decoder_class = LlamaDecoderLayer
     elif model_family == 'internlm':
         norm_class = model.model.layers[0].attention_norm.__class__
         decoder_class = model.model.layers[0].__class__

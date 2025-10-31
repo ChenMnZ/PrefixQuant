@@ -1,6 +1,6 @@
 CUDA_VISIBLE_DEVICES=5 python3 main.py \
 --model_path /opt/tiger/PrefixQuant/hf_models/deepseek-llm-7b-base  \
---model_name Llama-3-8b \
+--model_name Llama-7b \
 --output_dir ./log/llama-3-8b-w4a4kv4 \
 --wbits 4 \
 --input_bits 4 \
