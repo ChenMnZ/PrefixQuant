@@ -4,7 +4,9 @@ Official PyTorch implement for [PrefixQuant: Eliminating Outliers by Prefixed To
 
 
 ## News
-[2025/05] 🔥 **We explore the [Scaling Law for Quantization-Aware Training](https://export.arxiv.org/abs/2505.14302), which offers insights and instruction for LLMs QAT.**
+[2025/11] 🔥 **We open-source [INT vs. FP](https://github.com/ChenMnZ/INT_vs_FP), a framework to compare low-bit integer and float-point formats, including MXFP8/MXFP6/MXFP4/NVFP4 and MXINT8/MXINT6/MXINT4/NVINT4.**
+
+[2025/05] 🔥 We explore the [Scaling Law for Quantization-Aware Training](https://export.arxiv.org/abs/2505.14302), which offers insights and instruction for LLMs QAT.
 
 [2025/1] Support the learnable activation cliping for dynamic quantization.
 
