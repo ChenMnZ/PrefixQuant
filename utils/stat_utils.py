@@ -230,6 +230,8 @@ def get_down_proj_name(model_family):
 def get_prefixed_tokens(dataloader, model, tokenizer, model_name, outlier_threshold=64, activation_type='down_proj'):
     activation_dict = {}
     model_family = model_name.split('-')[0].lower()
+    if model_family == 'meta':
+        model_family = model_name.split('-')[1].lower()
     norm_class, decoder_class = get_nrom_and_decoder_class(model_family, model)
     down_proj_name = get_down_proj_name(model_family)
     if activation_type == 'hidden_state':
